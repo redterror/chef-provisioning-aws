@@ -1,7 +1,10 @@
 require 'chef/provisioning/aws_driver/aws_provider'
+require 'chef/provisioning/aws_driver/tagging_strategy/ec2'
 require 'retryable'
 
 class Chef::Provider::AwsDhcpOptions < Chef::Provisioning::AWSDriver::AWSProvider
+  include Chef::Provisioning::AWSDriver::TaggingStrategy::EC2
+
   protected
 
   def create_aws_object
