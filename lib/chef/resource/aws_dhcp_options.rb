@@ -1,4 +1,5 @@
 require 'chef/provisioning/aws_driver/aws_resource_with_entry'
+require 'chef/provisioning/aws_driver/aws_taggable'
 
 #
 # DHCP options for use by VPCs.

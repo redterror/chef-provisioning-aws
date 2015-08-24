@@ -1,7 +1,6 @@
 require 'aws'
 require 'chef/provisioning/aws_driver/super_lwrp'
 require 'chef/provisioning/chef_managed_entry_store'
-require_relative 'aws_taggable'
 
 # Common AWS resource - contains metadata that all AWS resources will need
 module Chef::Provisioning::AWSDriver
