@@ -3,31 +3,19 @@ require 'retryable'
 module Chef::Provisioning::AWSDriver
 # Include this module on a class or instance that is responsible for tagging
 # itself.  Fill in the hook methods so it knows how to tag itself.
-module AWSTagger
+class AWSTagger
+  extend Forwardable
 
-  def tagging_client
-    raise NotImplementedError
+  attr_reader :action_handler
+
+  def initialize(tagging_strategy, action_handler)
+    @tagging_strategy = tagging_strategy
+    @action_handler = action_handler
   end
 
-  # Always returns tags as a 1-layer Hash from tag key to value
-  def desired_tags
-    raise NotImplementedError
-  end
-
-  def current_tags
-    raise NotImplementedError
-  end
-
-  def set_tags(tags)
-    raise NotImplementedError
-  end
-
-  def delete_tags(tag_keys)
-    raise NotImplementedError
-  end
+  def_delegators :@tagging_strategy, :desired_tags, :current_tags, :set_tags, :delete_tags
 
   def converge_tags
-    require 'pry'; binding.pry
     if desired_tags.nil?
       Chef::Log.debug "aws_tags not provided, nothing to converge"
       return
@@ -47,14 +35,18 @@ module AWSTagger
     # Tagging frequently fails so we retry with an exponential backoff, a maximum of 10 seconds
     Retryable.retryable(:tries => 5, :sleep => lambda { |n| [2**n, 10].min }) do |retries, exception|
       if retries > 0
-        Chef::Log.debug "Retrying the tagging, previous try failed with #{exception.inspect}"
+        Chef::Log.info "Retrying the tagging, previous try failed with #{exception.inspect}"
       end
       unless tags_to_set.empty?
-        set_tags(tags_to_set)
+        action_handler.perform_action "creating tags #{tags_to_set}" do
+          set_tags(tags_to_set)
+        end
         tags_to_set = []
       end
       unless tags_to_delete.empty?
-        delete_tags(tags_to_delete)
+        action_handler.perform_action "deleting tags #{tags_to_delete}" do
+          delete_tags(tags_to_delete)
+        end
         tags_to_delete = []
       end
     end

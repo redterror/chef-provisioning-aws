@@ -18,6 +18,7 @@ require 'chef/resource/aws_load_balancer'
 require 'chef/provisioning/aws_driver/aws_resource'
 require 'chef/provisioning/aws_driver/version'
 require 'chef/provisioning/aws_driver/credentials'
+require 'chef/Provisioning/aws_driver/aws_tagger'
 
 require 'yaml'
 require 'aws-sdk-v1'
@@ -37,6 +38,10 @@ module AWSDriver
     include Chef::Mixin::DeepMerge
 
     attr_reader :aws_config
+
+    # We add the appropriate attributes to the base resources for tagging support
+    Chef::Resource::Machine.include(Chef::Provisioning::AWSDriver::AWSTaggable)
+    Chef::Provider::Machine.additional_machine_option_keys << :aws_tags
 
     # URL scheme:
     # aws:profilename:region
@@ -506,9 +511,15 @@ EOD
           end
         end
       end
-      # TODO because we don't want to add `provider_tags` as a base attribute,
-      # we have to update the tags here in driver.rb instead of the providers
-      converge_tags(actual_instance, machine_options[:aws_tags], action_handler)
+
+      ec2_strategy = Chef::Provisioning::AWSDriver::TaggingStrategy::EC2.new(
+        ec2.client,
+        actual_instance.id,
+        machine_options[:aws_tags]
+      )
+      aws_tagger = Chef::Provisioning::AWSDriver::AWSTagger.new(ec2_strategy, action_handler)
+      aws_tagger.converge_tags
+
     end
 
     def allocate_machines(action_handler, specs_and_options, parallelizer)

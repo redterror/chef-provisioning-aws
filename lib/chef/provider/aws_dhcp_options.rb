@@ -3,7 +3,18 @@ require 'chef/provisioning/aws_driver/tagging_strategy/ec2'
 require 'retryable'
 
 class Chef::Provider::AwsDhcpOptions < Chef::Provisioning::AWSDriver::AWSProvider
-  include Chef::Provisioning::AWSDriver::TaggingStrategy::EC2
+
+  def converge_tags
+    @aws_tagger ||= begin
+      ec2_strategy = Chef::Provisioning::AWSDriver::TaggingStrategy::EC2.new(
+        new_resource.driver.ec2.client,
+        new_resource.aws_object_id,
+        new_resource.aws_tags
+      )
+      Chef::Provisioning::AWSDriver::AWSTagger.new(ec2_strategy, action_handler)
+    end
+    @aws_tagger.converge_tags
+  end
 
   protected
 

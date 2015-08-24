@@ -1,17 +1,14 @@
 require 'chef/provisioning/aws_driver/aws_tagger'
 
 module Chef::Provisioning::AWSDriver::TaggingStrategy
-module EC2
-  include Chef::Provisioning::AWSDriver::AWSTagger
+class EC2
 
-  def tagging_client
-    @tagging_client ||= new_resource.driver.ec2.client
-  end
+  attr_reader :tagging_client, :aws_object_id, :desired_tags
 
-  def desired_tags
-    # TODO bad coupling - requires being added on the provider
-    # TODO bad coupling, requires resource to have `aws_tags`
-    new_resource.aws_tags
+  def initialize(tagging_client, aws_object_id, desired_tags)
+    @tagging_client = tagging_client
+    @aws_object_id = aws_object_id
+    @desired_tags = desired_tags
   end
 
   def current_tags
@@ -20,7 +17,7 @@ module EC2
       filters: [
         {
           name: "resource-id",
-          values: [new_resource.aws_object_id]
+          values: [aws_object_id]
         }
       ]
     })
@@ -28,21 +25,17 @@ module EC2
   end
 
   def set_tags(tags)
-    converge_by "applying tags #{tags}" do
-      tagging_client.create_tags({
-        resources: [new_resource.aws_object_id],
-        tags: tags.map {|k,v| {key: k, value: v} }
-      })
-    end
+    tagging_client.create_tags({
+      resources: [aws_object_id],
+      tags: tags.map {|k,v| {key: k, value: v} }
+    })
   end
 
   def delete_tags(tag_keys)
-    converge_by "deleting tags #{tag_keys.inspect}" do
-      tagging_client.delete_tags({
-        resources: [new_resource.aws_object_id],
-        tags: tag_keys.map {|k| {key: k} }
-      })
-    end
+    tagging_client.delete_tags({
+      resources: [aws_object_id],
+      tags: tag_keys.map {|k| {key: k} }
+    })
   end
 
 end
